@@ -266,7 +266,8 @@ class ConfigController extends AdminController
             throw new Exception('Name does not exist.');
         }
 
-        if ($configuration && isset($configuration->configuration->general->executor)) {
+        if (isset($configuration->configuration->general->executor) &&
+            class_exists($configuration->configuration->general->executor) {
             /** @var $className IExecutor */
             $className = $configuration->configuration->general->executor;
             $cli = $className::getCli($name, null);
