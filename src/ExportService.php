@@ -17,13 +17,17 @@ namespace Elements\Bundle\ExportToolkitBundle;
 
 use Elements\Bundle\ExportToolkitBundle\ExportService\Worker;
 use Elements\Bundle\ProcessManagerBundle\ExecutionTrait;
-use Pimcore\Log\Simple;
 use Pimcore\Logger;
 use Pimcore\Model\DataObject\AbstractObject;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
+use Psr\Log\LoggerInterface;
+use Symfony\Contracts\Service\Attribute\Required;
 
-class ExportService
+class ExportService implements LoggerAwareInterface
 {
     use ExecutionTrait;
+    use LoggerAwareTrait;
 
     /**
      * @var Worker[]
@@ -46,6 +50,16 @@ class ExportService
                 $worker->setUpExport();
             }
         }
+    }
+
+    /**
+     * Sets a logger.
+     * @param LoggerInterface $logger
+     */
+    #[Required]
+    public function setLogger(LoggerInterface $logger): void
+    {
+        $this->logger = $logger;
     }
 
     public function deleteFromExport(AbstractObject $object, $objectHook = false)
@@ -104,7 +118,7 @@ class ExportService
 
         $worker->setLogger($monitoringItem->getLogger());
 
-        Simple::log('export-toolkit-' . $workerName, '');
+        $this->logger->info('export-toolkit-' . $workerName);
 
         //step 1 - setting up export
         $monitoringItem->setTotalSteps(3)->setCurrentStep(1)->setMessage("Setting up export $workerName")->save();
@@ -126,9 +140,9 @@ class ExportService
         $monitoringItem->setCurrentStep(2)->setMessage('Starting Exporting Data')->setTotalWorkload($totalObjectCount)->save();
 
         while ($count > 0) {
-            Simple::log('export-toolkit-' . $workerName, '=========================');
-            Simple::log('export-toolkit-' . $workerName, "Page $workerName: $page");
-            Simple::log('export-toolkit-' . $workerName, '=========================');
+            $this->logger->info('export-toolkit-' . $workerName . ' =========================');
+            $this->logger->info('export-toolkit-' . $workerName . " Page $workerName: $page");
+            $this->logger->info('export-toolkit-' . $workerName . ' =========================');
 
             $objects = $worker->getObjectList();
             $offset = $page * $pageSize;
@@ -138,7 +152,7 @@ class ExportService
             $items = $objects->load();
             $monitoringItem->setCurrentWorkload(($offset) ?: 1)->setDefaultProcessMessage(isset($items[0]) ? $items[0]->getClassName() : 'Items')->save();
             foreach ($items as $object) {
-                Simple::log('export-toolkit-' . $workerName, 'Updating object ' . $object->getId());
+                $this->logger->info('export-toolkit-' . $workerName . ' Updating object ' . $object->getId());
 
                 $monitoringItem->getLogger()->debug('Updating object ' . $object->getId());
 
@@ -146,7 +160,7 @@ class ExportService
                     $worker->updateExport($object);
                 } else {
                     $monitoringItem->getLogger()->debug('do not update export object ' . $object->getId() . ' for ' . $workerName . '.');
-                    Simple::log('export-toolkit-' . $workerName, 'do not update export object ' . $object->getId() . ' for ' . $workerName . '.');
+                    $this->logger->info('export-toolkit-' . $workerName . ' do not update export object ' . $object->getId() . ' for ' . $workerName . '.');
                 }
                 $i++;
                 if ($limit && ($i == $limit)) {
@@ -162,7 +176,7 @@ class ExportService
             \Pimcore::collectGarbage();
         }
 
-        $monitoringItem->setWorloadCompleted()->save();
+        $monitoringItem->setWorkloadCompleted()->save();
 
         //step 3 - committing data
         $monitoringItem->setCurrentStep(3)->setMessage('Committing Data')->save();
