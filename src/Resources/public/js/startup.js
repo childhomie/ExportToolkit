@@ -64,7 +64,8 @@ pimcore.plugin.ExportToolkit = Class.create({
                     //console.log(e);
                     pimcore.globalmanager.add("plugin_exporttoolkit_configpanel", new pimcore.plugin.exporttoolkit.config.ConfigPanel());
                 }
-            };
+            }
+        };
 
         this.items.push(cacheClearMenuItem);
         this.items.push(configMenuItem);
